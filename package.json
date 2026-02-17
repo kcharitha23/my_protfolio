@@ -1,0 +1,23 @@
+{
+  "name": "developer-portfolio",
+  "version": "1.0.0",
+  "description": "Full-stack portfolio project with React Native and web components",
+  "type": "module",
+  "scripts": {
+    "start": "npm run serve",
+    "serve": "npx http-server web -p 8000 -c-1",
+    "dev": "npm run serve"
+  },
+  "keywords": [
+    "portfolio",
+    "react",
+    "javascript",
+    "html",
+    "css"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  }
+}
