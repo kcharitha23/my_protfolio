@@ -1,76 +1,27 @@
-# dir-glob [![Build Status](https://travis-ci.org/kevva/dir-glob.svg?branch=master)](https://travis-ci.org/kevva/dir-glob)
+# escape-string-regexp [![Build Status](https://travis-ci.org/sindresorhus/escape-string-regexp.svg?branch=master)](https://travis-ci.org/sindresorhus/escape-string-regexp)
 
-> Convert directories to glob compatible strings
+> Escape RegExp special characters
 
 
 ## Install
 
 ```
-$ npm install dir-glob
+$ npm install --save escape-string-regexp
 ```
 
 
 ## Usage
 
 ```js
-const dirGlob = require('dir-glob');
+const escapeStringRegexp = require('escape-string-regexp');
 
-(async () => {
-	console.log(await dirGlob(['index.js', 'test.js', 'fixtures']));
-	//=> ['index.js', 'test.js', 'fixtures/**']
+const escapedString = escapeStringRegexp('how much $ for a unicorn?');
+//=> 'how much \$ for a unicorn\?'
 
-	console.log(await dirGlob(['index.js', 'inner_folder'], {cwd: 'fixtures'}));
-	//=> ['index.js', 'inner_folder/**']
-
-	console.log(await dirGlob(['lib/**', 'fixtures'], {
-		files: ['test', 'unicorn']
-		extensions: ['js']
-	}));
-	//=> ['lib/**', 'fixtures/**/test.js', 'fixtures/**/unicorn.js']
-
-	console.log(await dirGlob(['lib/**', 'fixtures'], {
-		files: ['test', 'unicorn', '*.jsx'],
-		extensions: ['js', 'png']
-	}));
-	//=> ['lib/**', 'fixtures/**/test.{js,png}', 'fixtures/**/unicorn.{js,png}', 'fixtures/**/*.jsx']
-})();
+new RegExp(escapedString);
 ```
 
 
-## API
+## License
 
-### dirGlob(input, options?)
-
-Returns a `Promise<string[]>` with globs.
-
-### dirGlob.sync(input, options?)
-
-Returns a `string[]` with globs.
-
-#### input
-
-Type: `string | string[]`
-
-Paths.
-
-#### options
-
-Type: `object`
-
-##### extensions
-
-Type: `string[]`
-
-Append extensions to the end of your globs.
-
-##### files
-
-Type: `string[]`
-
-Only glob for certain files.
-
-##### cwd
-
-Type: `string[]`
-
-Test in specific directory.
+MIT © [Sindre Sorhus](http://sindresorhus.com)
