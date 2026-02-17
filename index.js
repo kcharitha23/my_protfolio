@@ -1,170 +1,75 @@
 'use strict';
+const path = require('path');
+const pathType = require('path-type');
 
-const stringify = require('./lib/stringify');
-const compile = require('./lib/compile');
-const expand = require('./lib/expand');
-const parse = require('./lib/parse');
+const getExtensions = extensions => extensions.length > 1 ? `{${extensions.join(',')}}` : extensions[0];
 
-/**
- * Expand the given pattern or create a regex-compatible string.
- *
- * ```js
- * const braces = require('braces');
- * console.log(braces('{a,b,c}', { compile: true })); //=> ['(a|b|c)']
- * console.log(braces('{a,b,c}')); //=> ['a', 'b', 'c']
- * ```
- * @param {String} `str`
- * @param {Object} `options`
- * @return {String}
- * @api public
- */
-
-const braces = (input, options = {}) => {
-  let output = [];
-
-  if (Array.isArray(input)) {
-    for (const pattern of input) {
-      const result = braces.create(pattern, options);
-      if (Array.isArray(result)) {
-        output.push(...result);
-      } else {
-        output.push(result);
-      }
-    }
-  } else {
-    output = [].concat(braces.create(input, options));
-  }
-
-  if (options && options.expand === true && options.nodupes === true) {
-    output = [...new Set(output)];
-  }
-  return output;
+const getPath = (filepath, cwd) => {
+	const pth = filepath[0] === '!' ? filepath.slice(1) : filepath;
+	return path.isAbsolute(pth) ? pth : path.join(cwd, pth);
 };
 
-/**
- * Parse the given `str` with the given `options`.
- *
- * ```js
- * // braces.parse(pattern, [, options]);
- * const ast = braces.parse('a/{b,c}/d');
- * console.log(ast);
- * ```
- * @param {String} pattern Brace pattern to parse
- * @param {Object} options
- * @return {Object} Returns an AST
- * @api public
- */
+const addExtensions = (file, extensions) => {
+	if (path.extname(file)) {
+		return `**/${file}`;
+	}
 
-braces.parse = (input, options = {}) => parse(input, options);
-
-/**
- * Creates a braces string from an AST, or an AST node.
- *
- * ```js
- * const braces = require('braces');
- * let ast = braces.parse('foo/{a,b}/bar');
- * console.log(stringify(ast.nodes[2])); //=> '{a,b}'
- * ```
- * @param {String} `input` Brace pattern or AST.
- * @param {Object} `options`
- * @return {Array} Returns an array of expanded values.
- * @api public
- */
-
-braces.stringify = (input, options = {}) => {
-  if (typeof input === 'string') {
-    return stringify(braces.parse(input, options), options);
-  }
-  return stringify(input, options);
+	return `**/${file}.${getExtensions(extensions)}`;
 };
 
-/**
- * Compiles a brace pattern into a regex-compatible, optimized string.
- * This method is called by the main [braces](#braces) function by default.
- *
- * ```js
- * const braces = require('braces');
- * console.log(braces.compile('a/{b,c}/d'));
- * //=> ['a/(b|c)/d']
- * ```
- * @param {String} `input` Brace pattern or AST.
- * @param {Object} `options`
- * @return {Array} Returns an array of expanded values.
- * @api public
- */
+const getGlob = (directory, options) => {
+	if (options.files && !Array.isArray(options.files)) {
+		throw new TypeError(`Expected \`files\` to be of type \`Array\` but received type \`${typeof options.files}\``);
+	}
 
-braces.compile = (input, options = {}) => {
-  if (typeof input === 'string') {
-    input = braces.parse(input, options);
-  }
-  return compile(input, options);
+	if (options.extensions && !Array.isArray(options.extensions)) {
+		throw new TypeError(`Expected \`extensions\` to be of type \`Array\` but received type \`${typeof options.extensions}\``);
+	}
+
+	if (options.files && options.extensions) {
+		return options.files.map(x => path.posix.join(directory, addExtensions(x, options.extensions)));
+	}
+
+	if (options.files) {
+		return options.files.map(x => path.posix.join(directory, `**/${x}`));
+	}
+
+	if (options.extensions) {
+		return [path.posix.join(directory, `**/*.${getExtensions(options.extensions)}`)];
+	}
+
+	return [path.posix.join(directory, '**')];
 };
 
-/**
- * Expands a brace pattern into an array. This method is called by the
- * main [braces](#braces) function when `options.expand` is true. Before
- * using this method it's recommended that you read the [performance notes](#performance))
- * and advantages of using [.compile](#compile) instead.
- *
- * ```js
- * const braces = require('braces');
- * console.log(braces.expand('a/{b,c}/d'));
- * //=> ['a/b/d', 'a/c/d'];
- * ```
- * @param {String} `pattern` Brace pattern
- * @param {Object} `options`
- * @return {Array} Returns an array of expanded values.
- * @api public
- */
+module.exports = async (input, options) => {
+	options = {
+		cwd: process.cwd(),
+		...options
+	};
 
-braces.expand = (input, options = {}) => {
-  if (typeof input === 'string') {
-    input = braces.parse(input, options);
-  }
+	if (typeof options.cwd !== 'string') {
+		throw new TypeError(`Expected \`cwd\` to be of type \`string\` but received type \`${typeof options.cwd}\``);
+	}
 
-  let result = expand(input, options);
+	const globs = await Promise.all([].concat(input).map(async x => {
+		const isDirectory = await pathType.isDirectory(getPath(x, options.cwd));
+		return isDirectory ? getGlob(x, options) : x;
+	}));
 
-  // filter out empty strings if specified
-  if (options.noempty === true) {
-    result = result.filter(Boolean);
-  }
-
-  // filter out duplicates if specified
-  if (options.nodupes === true) {
-    result = [...new Set(result)];
-  }
-
-  return result;
+	return [].concat.apply([], globs); // eslint-disable-line prefer-spread
 };
 
-/**
- * Processes a brace pattern and returns either an expanded array
- * (if `options.expand` is true), a highly optimized regex-compatible string.
- * This method is called by the main [braces](#braces) function.
- *
- * ```js
- * const braces = require('braces');
- * console.log(braces.create('user-{200..300}/project-{a,b,c}-{1..10}'))
- * //=> 'user-(20[0-9]|2[1-9][0-9]|300)/project-(a|b|c)-([1-9]|10)'
- * ```
- * @param {String} `pattern` Brace pattern
- * @param {Object} `options`
- * @return {Array} Returns an array of expanded values.
- * @api public
- */
+module.exports.sync = (input, options) => {
+	options = {
+		cwd: process.cwd(),
+		...options
+	};
 
-braces.create = (input, options = {}) => {
-  if (input === '' || input.length < 3) {
-    return [input];
-  }
+	if (typeof options.cwd !== 'string') {
+		throw new TypeError(`Expected \`cwd\` to be of type \`string\` but received type \`${typeof options.cwd}\``);
+	}
 
-  return options.expand !== true
-    ? braces.compile(input, options)
-    : braces.expand(input, options);
+	const globs = [].concat(input).map(x => pathType.isDirectorySync(getPath(x, options.cwd)) ? getGlob(x, options) : x);
+
+	return [].concat.apply([], globs); // eslint-disable-line prefer-spread
 };
-
-/**
- * Expose "braces"
- */
-
-module.exports = braces;

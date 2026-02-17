@@ -1,34 +1,76 @@
-# array-union [![Build Status](https://travis-ci.org/sindresorhus/array-union.svg?branch=master)](https://travis-ci.org/sindresorhus/array-union)
+# dir-glob [![Build Status](https://travis-ci.org/kevva/dir-glob.svg?branch=master)](https://travis-ci.org/kevva/dir-glob)
 
-> Create an array of unique values, in order, from the input arrays
+> Convert directories to glob compatible strings
 
 
 ## Install
 
 ```
-$ npm install array-union
+$ npm install dir-glob
 ```
 
 
 ## Usage
 
 ```js
-const arrayUnion = require('array-union');
+const dirGlob = require('dir-glob');
 
-arrayUnion([1, 1, 2, 3], [2, 3]);
-//=> [1, 2, 3]
+(async () => {
+	console.log(await dirGlob(['index.js', 'test.js', 'fixtures']));
+	//=> ['index.js', 'test.js', 'fixtures/**']
 
-arrayUnion(['foo', 'foo', 'bar']);
-//=> ['foo', 'bar']
+	console.log(await dirGlob(['index.js', 'inner_folder'], {cwd: 'fixtures'}));
+	//=> ['index.js', 'inner_folder/**']
 
-arrayUnion(['🐱', '🦄', '🐻'], ['🦄', '🌈']);
-//=> ['🐱', '🦄', '🐻', '🌈']
+	console.log(await dirGlob(['lib/**', 'fixtures'], {
+		files: ['test', 'unicorn']
+		extensions: ['js']
+	}));
+	//=> ['lib/**', 'fixtures/**/test.js', 'fixtures/**/unicorn.js']
 
-arrayUnion(['🐱', '🦄'], ['🐻', '🦄'], ['🐶', '🌈', '🌈']);
-//=> ['🐱', '🦄', '🐻', '🐶', '🌈']
+	console.log(await dirGlob(['lib/**', 'fixtures'], {
+		files: ['test', 'unicorn', '*.jsx'],
+		extensions: ['js', 'png']
+	}));
+	//=> ['lib/**', 'fixtures/**/test.{js,png}', 'fixtures/**/unicorn.{js,png}', 'fixtures/**/*.jsx']
+})();
 ```
 
 
-## License
+## API
 
-MIT © [Sindre Sorhus](https://sindresorhus.com)
+### dirGlob(input, options?)
+
+Returns a `Promise<string[]>` with globs.
+
+### dirGlob.sync(input, options?)
+
+Returns a `string[]` with globs.
+
+#### input
+
+Type: `string | string[]`
+
+Paths.
+
+#### options
+
+Type: `object`
+
+##### extensions
+
+Type: `string[]`
+
+Append extensions to the end of your globs.
+
+##### files
+
+Type: `string[]`
+
+Only glob for certain files.
+
+##### cwd
+
+Type: `string[]`
+
+Test in specific directory.
